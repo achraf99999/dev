@@ -1,0 +1,14 @@
+# Ignore Python bytecode files
+*.pyc
+__pycache__/
+
+# Ignore virtual environment directories
+venv/
+
+# Ignore database files
+*.sqlite3
+*.db
+
+# Ignore secret settings (if you use them)
+.env
+image_noise_project/
