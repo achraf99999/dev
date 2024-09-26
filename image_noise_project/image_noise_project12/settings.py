@@ -49,7 +49,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'image_noise_project.urls'
+ROOT_URLCONF = 'image_noise_project12.urls'
 
 TEMPLATES = [
     {
