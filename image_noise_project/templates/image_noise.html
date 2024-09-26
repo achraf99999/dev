@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Noise Interface</title>
+    <!-- Lien vers Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/4.5.0/fabric.min.js"></script>
+    <style>
+        #drawingCanvas {
+            border: 1px solid #000;
+            cursor: crosshair;
+        }
+    </style>
+</head>
+
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="text-center">Ajouter du bruit à une image et dessiner dessus</h1>
+        <form method="post" enctype="multipart/form-data" class="mb-4">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="image">Télécharger une image depuis votre PC :</label>
+                <input type="file" name="image" id="image" required accept="image/*" class="form-control-file" onchange="previewImage(event)">
+            </div>
+            <button type="button" id="addNoiseButton" class="btn btn-primary">Ajouter du bruit</button>
+        </form>
+
+        <h2>Aperçu de l'image téléchargée :</h2>
+        <img id="preview" class="img-fluid mb-4" style="display: none;"/>
+
+        <h2>Aperçu sur le canevas :</h2>
+        <canvas id="drawingCanvas" width="600" height="600" class="mb-4"></canvas>
+
+        <div class="d-flex align-items-center">
+            <label for="brushColor" class="mr-2">Couleur du pinceau :</label>
+            <input type="color" id="brushColor" value="#000000" class="mr-3">
+            
+            
+            <label for="brushSize" class="mr-2">Taille du pinceau :</label>
+            <input type="number" id="brushSize" value="5" min="1" max="50" class="mr-3">
+        </div>
+
+        <div class="text-center">
+            <button id="saveDrawing" class="btn btn-success">Sauvegarder le dessin</button>
+            <button id="downloadImage" class="btn btn-info">Télécharger l'image actuelle</button>
+        </div>
+    </div>
+
+    <!-- Lien vers jQuery et Bootstrap JS -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <script>
+        const canvas = document.getElementById('drawingCanvas');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+
+        // Couleur et taille du pinceau
+        ctx.strokeStyle = document.getElementById('brushColor').value;
+        ctx.lineWidth = document.getElementById('brushSize').value;
+
+        document.getElementById('brushColor').addEventListener('input', (e) => {
+            ctx.strokeStyle = e.target.value;
+        });
+
+        document.getElementById('brushSize').addEventListener('input', (e) => {
+            ctx.lineWidth = e.target.value;
+        });
+
+        function previewImage(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+        
+            reader.onload = function(e) {
+                const img = new Image();
+                img.src = e.target.result;
+        
+                img.onload = function() {
+                    // Créer un canevas temporaire pour redimensionner l'image
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = 600;  // Largeur cible
+                    tempCanvas.height = 600; // Hauteur cible
+                    const tempCtx = tempCanvas.getContext('2d');
+                    
+                    // Dessiner l'image redimensionnée sur le canevas temporaire
+                    tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+                    
+                    // Effacer le canevas principal et dessiner l'image redimensionnée
+                    ctx.clearRect(0, 0, canvas.width, canvas.height); // Effacer le canevas principal
+                    ctx.drawImage(tempCanvas, 0, 0); // Dessiner l'image redimensionnée sur le canevas principal
+                    
+                    // Mettre à jour l'aperçu
+                    document.getElementById('preview').src = tempCanvas.toDataURL(); // Mettre à jour l'aperçu avec l'image redimensionnée
+                    document.getElementById('preview').style.display = 'block'; // Afficher l'image
+                };
+            };
+        
+            reader.readAsDataURL(file);
+        }
+
+        document.getElementById('addNoiseButton').addEventListener('click', () => {
+            const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            addNoise(imgData); // Appeler la fonction pour ajouter du bruit
+            ctx.putImageData(imgData, 0, 0); // Mettre à jour le canevas avec l'image bruitée
+        });
+
+        function addNoise(imageData) {
+            const data = imageData.data;
+
+            for (let i = 0; i < data.length; i += 4) {
+                if (Math.random() < 0.1) { // 10% de probabilité d'ajouter du bruit
+                    const noise = Math.floor(Math.random() * 100) - 50; // Valeur de bruit entre -50 et 50
+                    data[i] = Math.min(255, Math.max(0, data[i] + noise));     // Rouge
+                    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise)); // Vert
+                    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise)); // Bleu
+                }
+            }
+        }
+
+        // Gérer les événements de dessin
+        canvas.addEventListener('mousedown', (e) => {
+            drawing = true;
+            ctx.beginPath(); // Commencer un nouveau chemin
+            ctx.moveTo(e.offsetX, e.offsetY); // Utiliser les coordonnées relatives à la souris
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (drawing) {
+                ctx.lineTo(e.offsetX, e.offsetY); // Dessiner une ligne jusqu'à la position actuelle de la souris
+                ctx.stroke(); // Appliquer le dessin
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            drawing = false; // Arrêter de dessiner
+            ctx.beginPath(); // Finir le chemin
+        });
+
+        // Gérer la sauvegarde du dessin
+        document.getElementById('saveDrawing').addEventListener('click', () => {
+            const drawData = canvas.toDataURL(); // Obtenir l'image dessinée en base64
+            // Faire une requête AJAX pour sauvegarder le dessin
+            fetch('{% url "save_drawing_view" %}', { // Utiliser l'URL de Django
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': '{{ csrf_token }}', // Inclure le token CSRF pour la sécurité
+                },
+                body: `draw_data=${encodeURIComponent(drawData)}` // Encoder les données
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('Dessin sauvegardé avec succès !');
+                } else {
+                    alert('Échec de la sauvegarde du dessin.');
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lors de la sauvegarde:', error);
+            });
+        });
+
+        // Gérer le téléchargement de l'image actuelle
+        document.getElementById('downloadImage').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.href = canvas.toDataURL(); // Obtenir l'image en base64
+            link.download = 'image.png'; // Nom du fichier de téléchargement
+            link.click(); // Simuler le clic sur le lien
+        });
+    </script>
+</body>
+</html>

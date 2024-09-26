@@ -11,4 +11,4 @@ venv/
 
 # Ignore secret settings (if you use them)
 .env
-image_noise_project/
+
